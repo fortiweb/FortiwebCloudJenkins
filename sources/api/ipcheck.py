@@ -28,7 +28,7 @@ class IPRegion(RequestAuth):
             api_data["custom_port"]["https"] = https
         else:
             api_data["custom_port"]["http"] = http
-        data = dict({"ep_ip": server})
+        data = dict({"ep_ip": server, "domain_name": domain})
         super().__init__(path="check-ip-region", method="POST", data=data, token=token)
 
     def get_ip_region(self):
