@@ -14,8 +14,8 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("-a", "--app", help="APP Name")
     parser.add_argument("-t", "--http", type=int, default=80, help="HTTP Port")
     parser.add_argument("-P", "--https", type=int, default=443, help="HTTPS Port")
-    parser.add_argument("-g", "--cdn", default=False, help="Global CDN Status")
-    parser.add_argument("-b", "--block", default=False, help="Block Status")
+    parser.add_argument("-g", "--cdn", type=bool, default=False, help="Global CDN Status")
+    parser.add_argument("-b", "--block", type=bool, default=False, help="Block Status")
     parser.add_argument("-T", "--Template", default="", help="Template Name")
 
     parser.add_argument("-e", "--extra", default="", help="Extra domain names")
