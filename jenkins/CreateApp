@@ -5,7 +5,7 @@ pipeline {
         password(name: 'password', defaultValue: 'SECRET', description: 'Enter a password')
         string(name: 'application_name', defaultValue: 'YOUR_APP_NAME', description: 'Your app name')
         string(name: 'domain_name', defaultValue: 'www.example.com', description: 'Your domain name')
-        text(name: 'extra_domains', defaultValue: 'www.a.com\n www.b.com', description: '')
+        text(name: 'extra_domains', defaultValue: 'www.a.com\nwww.b.com', description: '')
         string(name: 'origin_server_ip', defaultValue: '1.1.1.1', description: 'Your server address')
         string(name: 'http', defaultValue: '80', description: 'App service supports http port')
         string(name: 'https', defaultValue: '443', description: 'App service supports https port')
