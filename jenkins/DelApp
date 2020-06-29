@@ -1,9 +1,9 @@
 pipeline {
     agent { docker { image 'python:3.6-alpine' } }
     parameters {
-        string(name: 'USER', defaultValue: 'admin', description: 'You must input you fortiweb cloud account')
-        password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
-        string(name: 'DOMAIN', defaultValue: 'www.demo.com', description: 'Your domain name')
+        string(name: 'user', defaultValue: 'admin', description: 'You must input you fortiweb cloud account')
+        password(name: 'password', defaultValue: 'SECRET', description: 'Enter a password')
+        string(name: 'application_name', defaultValue: 'www.demo.com', description: 'Your domain name')
     }
     stages {
         stage('build') {
@@ -17,7 +17,7 @@ pipeline {
             }
             steps {
                 echo 'Start execute del app with para:'
-                sh "python sources/del_app.py  -u ${params.USER} -p ${params.PASSWORD} -d ${params.DOMAIN}"
+                sh "python sources/del_app.py  -u ${params.user} -p ${params.password} -a ${params.application_name}"
             }
         }
     }

@@ -2,6 +2,7 @@
 import argparse
 import sys
 from api.app import create_app
+from api.cloudwaf import SendHandler
 
 def getOptions(args=sys.argv[1:]):
     print(args)
@@ -11,25 +12,43 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("-d", "--domain", help="Domain Name.")
     parser.add_argument("-s", "--server", help="Server IP")
     parser.add_argument("-a", "--app", help="APP Name")
-    parser.add_argument("-c", "--custom", default="HTTP", help="Custom Port")
-    parser.add_argument("-t", "--trans", type=int, default=80, help="HTTP Port")
-    parser.add_argument("-P", "--Port", type=int, default=443, help="HTTPS Port")
-    parser.add_argument("-g", "--globals", default=False, help="Global CDN Status")
+    parser.add_argument("-t", "--http", type=int, default=80, help="HTTP Port")
+    parser.add_argument("-P", "--https", type=int, default=443, help="HTTPS Port")
+    parser.add_argument("-g", "--cdn", default=False, help="Global CDN Status")
     parser.add_argument("-b", "--block", default=False, help="Block Status")
     parser.add_argument("-T", "--Template", default="", help="Template Name")
+
+    parser.add_argument("-e", "--extra", default="", help="Extra domain names")
+    parser.add_argument("-S", "--service", default="HTTPS", help="Server support service")
+    parser.add_argument("-D", "--port", default="443", help="Origin server port")
+
     options = parser.parse_args(args)
     data = dict({})
-    data["username"] = options.username
-    data["password"] = options.password
+
     data["domain"] = options.domain
-    data["pserver"] = options.server
-    data["app"] = options.app
-    data["custom"] = options.custom
-    data["http"] = options.trans
-    data["https"] = options.Port
-    data["cdn"] = options.globals
-    data["block"] = options.block
+    data["server"] = options.server
+    data["app_name"] = options.app
+    extra = []
+    if options.extra != "":
+        extra_domains = options.extra.split("\n")
+        for e in extra_domains:
+            if e.strip() != "":
+                extra.append(e.strip())
+
+    data["extra_domains"] = extra
+    data["app_service"] = {"http": options.http, "https": options.https}
+
+    data["backend_type"] = options.service  # origin_server_service
+    data["port"] = options.port  # "origin_server_port"
+    data["cdn"] = options.cdn
+    data["block"] = 1 if options.block else 0
     data["template"] = options.Template
+
+    data["http"] = options.http
+    data["https"] = options.https
+
+    handler = SendHandler(options.username, options.password)
+    data["handler"] = handler
     return data
 
 data = getOptions()

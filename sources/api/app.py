@@ -1,24 +1,25 @@
 import json
-from api.request import RequestAuth
-from api.token import Token
-from api.ipcheck import ServerTest, IPRegion
+from api.request import RequestBase
+
+from api.ipcheck import ServerTest, IPRegion, DnsLookup, is_ip_address
 from api.template import Template
 
-class AppCreate(RequestAuth):
 
-    def __init__(self, token, data={}, region=None, template=None):
+class AppCreate(RequestBase):
+
+    def __init__(self, data={}, region=None, test_result={}, template=None, handler=None):
         # def __init__(self, method='GET', path="", query='', data={}, timeout=3, **kargs):
-
-        api_data = dict({"app_name": data.get("app", "default_app_name"),
-                          "domain_name": data.get("domain"),
-                          "extra_domain": [],
-                          "block_mode": data.get("block_mode", 0),
-                          "server_address": data.get("pserver"),
-                          # "custom_port": {},
-                          "service": [],
+        self.domain = data.get("domain")
+        api_data = dict({"app_name": data.get("app_name", "default_app_name"),
+                          "domain_name": self.domain,
+                          "extra_domains": data.get("extra_domains", []),
+                          "block_mode": data.get("block", 0),
+                          "server_address": data.get("server"),
+                          "custom_port": {},
+                          "service": data.get("app_service", {}),
                           "template_enable": 0,
-                          "head_availability": 1,
-                          "head_status": 200})
+                          "head_availability": test_result.get("head_availability", 1),
+                          "head_status_code": test_result.get("head_status_code", 200)})
         if data.get("cdn"):
             api_data["cdn_status"] = 1
         else:
@@ -30,106 +31,141 @@ class AppCreate(RequestAuth):
             api_data["template_enable"] = 1
             api_data["template_id"] = template
 
-        backend_type = data.get("custom")
-        if backend_type == "BOTH":
-            # api_data["custom_port"]["http"] = data.get("http")
-            # api_data["custom_port"]["https"] = data.get("https")
-            api_data["service"].append("http")
-            api_data["service"].append("https")
-            api_data["server_type"] = "https"
+        api_data["server_type"] = data.get("backend_type", "").lower()
+        service = data.get("app_service", {})
+        api_data["service"] = list(service.keys())
+        api_data["custom_port"] = service
+        platform = region.get("region", [])
+        api_data["platform"] = platform[0] if len(platform) > 0 else "AWS"
+        # api_data["platform"] = "C8"
 
-        elif backend_type == "HTTPS":
-            # api_data["custom_port"]["https"] = data.get("https")
-            api_data["service"].append("https")
-            api_data["server_type"] = "https"
-
-        else:
-            # api_data["custom_port"]["http"] = data.get("http")
-            api_data["service"].append("http")
-            api_data["server_type"] = "http"
-
-        super().__init__(method='POST', path="application", data=api_data, token=token)
+        super().__init__(method='POST', path="application", data=api_data, handler=handler)
 
     def check(self):
-        pass
+        query = AppQuery(handler=self.handler, domain=self.domain)
+        if query.get_ep():
+            return False
+        else:
+            return True
 
     def create(self):
-        self.send()
+        return self.send()
 
 
-class AppQuery(RequestAuth):
-    def __init__(self, token, domain="", **kwargs):
+class AppQuery(RequestBase):
+    def __init__(self, domain="", app_name="", handler=None, **kwargs):
         self.domain = domain
+        self.app_name = app_name
         con = dict({"size": 1, "cursor": "", "forward": True, "filter": ""})
-        filter_con = dict({"id": "domain_name", "logic": {"is": {"string": True}, "search": "string"}, "value": [domain]})
-        con["filter"] = json.dumps([filter_con])
-        super().__init__(path="application", query=con, token=token)
+        url = "application"
+        if domain:
+            filter_con = dict(
+                {"id": "domain_name", "logic": {"is": {"string": True}, "search": "string"}, "value": [domain]})
+            con["filter"] = json.dumps([filter_con])
+        else:
+            con = dict({"partial": True})
+        super().__init__(path=url, query=con, handler=handler)
+
+    def get_ep(self):
+        res = self.send()
+        if isinstance(res, dict):
+            app_list = res.get("app_list", [])
+        elif isinstance(res, list):
+            app_list = res
+        else:
+            app_list = []
+        if len(app_list) > 0:
+            for app in app_list:
+                if app['app_name'] == self.app_name or app['domain_name'] == self.domain:
+                    return app
+            return None
+        else:
+            print("Not exist domain")
+            return None
 
     def get_ep_id(self):
-        res = self.send()
-        app_list = res.get("app_list", [])
-        if len(app_list) > 0:
-            return app_list[0]["ep_id"]
+        ep = self.get_ep()
+        if ep:
+            return ep["ep_id"]
         else:
-            print(f"Not exist domain id for domain name {self.domain}")
             return None
 
 
-class AppDel(RequestAuth):
-
-    def __init__(self, token, domain=""):
-        query = AppQuery(token, domain=domain)
-        self.ep_id = query.get_ep_id()
-        self.illegal = True
-        if self.ep_id:
-            super().__init__(method='DELETE', path=f"application/{self.ep_id}", token=token)
-            self.illegal = False
-        else:
-            raise Exception(f"Get an illegal domain {domain}")
+class AppDel(RequestBase):
+    def __init__(self, handler=None, ep_id=""):
+        self.ep_id = ep_id
+        super().__init__(method='DELETE', path=f"application/{self.ep_id}", handler=handler)
 
     def del_it(self):
-        if not self.illegal:
-            self.send()
-            print("Delete domain successfully")
-        else:
-            print("Delete domain failed")
+        self.send()
+        print("Delete domain successfully")
+
+
+class AppGet(RequestBase):
+    def __init__(self, handler=None, ep_id=""):
+        self.ep_id = ep_id
+        super().__init__(path=f"application/{self.ep_id}/endpoint", handler=handler)
+
+    def get_ep_data(self):
+        res = self.send()
+        return res
+
+class AppUpdate(RequestBase):
+    def __init__(self, data={}, handler=None, ep_id=""):
+        self.ep_id = ep_id
+        super().__init__(method='PUT', path=f"application/{self.ep_id}", data=data, handler=handler)
+
+    def update_ep(self):
+        res = self.send()
+        return res
 
 
 def create_app(data={}):
     print(f"Get the data: {data}")
-    token = Token(username=data.get("username", ""), password=data.get("password", ""))
-    token = token.get_token()
-    if token:
-        template_id = None
-        region = None
-        template = data.get("template")
-        if template.strip() != "":
-            template = Template(token=token)
-            template_id = template.get_id_by_name(data.get("template"))
-        if not data.get("cdn"):
-            tester = ServerTest(token=token, server=data.get("pserver"),
-                                backend_type=data.get("custom"), domain=data.get("domain"))
 
-            tester.pserver_test()
+    template_id = None
+    region = None
+    server_ips = []
+    query = AppQuery(app_name=data.get("app_name"), handler=data.get("handler", None))
+    ep = query.get_ep()
+    if ep:
+        return ep, False
 
-            region_checker = IPRegion(token=token, domain=data.get("domain"),
-                                      server=data.get("pserver"), backend_type=data.get("custom"),
-                                      http=data.get("http"), https=data.get("https"))
-            region = region_checker.get_ip_region()
-        app = AppCreate(token, data=data, region=region, template=template_id)
-        app.check()
-        app.create()
+    template = data.get("template")
+    if template.strip() != "":
+        template = Template(handler=data.get("handler", None))
+        template_id = template.get_id_by_name(data.get("template"))
 
+    if not is_ip_address(data.get("server")):
+        dns = DnsLookup(data.get("server"), handler=data.get("handler"))
+        server_ips = dns.get_server_address()
+        tester = ServerTest(server=server_ips,
+                            backend_type=data.get("backend_type"), domain=data.get("domain"),
+                            handler=data.get("handler", None))
     else:
-        raise Exception("Invalid username or password!")
+        tester = ServerTest(server=data.get("server"),
+                            backend_type=data.get("backend_type"), domain=data.get("domain"),
+                            handler=data.get("handler", None))
+    test_res = tester.pserver_test()
+
+    region_checker = IPRegion(domain=data.get("domain"),
+                              server=server_ips or data.get("server"), extra_domains=data.get("extra_domains"),
+                              service=data.get("app_service"),
+                              handler=data.get("handler", None))
+    region = region_checker.get_ip_region()
+    app = AppCreate(data=data, region=region, test_result=test_res, template=template_id,
+                    handler=data.get("handler", None))
+    if not app.check():  # exist app
+        return {}, False
+    else:
+        return app.create(), True
 
 
 def del_app(data={}):
-    token = Token(username=data.get("username", ""), password=data.get("password", ""))
-    token = token.get_token()
-    if token:
-        domain = data.get("domain", None)
-        app = AppDel(token, domain=domain)
+    app_name = data.get("app_name", None)
+    query = AppQuery(app_name=app_name, handler=data.get("handler", None))
+    ep_id = query.get_ep_id()
+    if ep_id:
+        app = AppDel(handler=data.get("handler", None), ep_id=ep_id)
         app.del_it()
-    else:
-        raise Exception("Invalid username or password!")
+
