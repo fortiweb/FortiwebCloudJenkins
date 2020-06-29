@@ -14,8 +14,8 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("-a", "--app", help="APP Name")
     parser.add_argument("-t", "--http", type=int, default=80, help="HTTP Port")
     parser.add_argument("-P", "--https", type=int, default=443, help="HTTPS Port")
-    parser.add_argument("-g", "--cdn", type=bool, default=False, help="Global CDN Status")
-    parser.add_argument("-b", "--block", type=bool, default=False, help="Block Status")
+    parser.add_argument("-g", "--cdn", default="False", help="Global CDN Status")
+    parser.add_argument("-b", "--block", default="False", help="Block Status")
     parser.add_argument("-T", "--Template", default="", help="Template Name")
 
     parser.add_argument("-e", "--extra", default="", help="Extra domain names")
@@ -40,8 +40,18 @@ def getOptions(args=sys.argv[1:]):
 
     data["backend_type"] = options.service  # origin_server_service
     data["port"] = options.port  # "origin_server_port"
-    data["cdn"] = options.cdn
-    data["block"] = 1 if options.block else 0
+    cdn = str(options.cdn)
+    if cdn.lower() == "false":
+        data["cdn"] = False
+    else:
+        data["cdn"] = True
+
+    block = str(options.block)
+    if block.lower() == "false":
+        data["block"] = 0
+    else:
+        data["block"] = 1
+
     data["template"] = options.Template
 
     data["http"] = options.http
