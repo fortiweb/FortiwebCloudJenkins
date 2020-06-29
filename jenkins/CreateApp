@@ -30,7 +30,11 @@ pipeline {
             }
             steps {
                 script {
-                    def paras = "-u ${params.user} -p ${params.password} -d ${params.domain_name} -a ${params.application_name} -e ${params.extra_domains} -S ${params.origin_server_service} -D ${params.origin_server_port}  -s ${params.origin_server_ip} -t ${params.http} -P ${params.https} -g ${params.cdn} -b ${params.block}"
+                    def paras = "-u ${params.user} -p ${params.password} -d ${params.domain_name} -a ${params.application_name} -S ${params.origin_server_service} -D ${params.origin_server_port}  -s ${params.origin_server_ip} -t ${params.http} -P ${params.https} -g ${params.cdn} -b ${params.block}"
+
+                    if ("${params.extra_domains}" != "") {
+                       paras = paras + " -e ${params.extra_domains}"
+                    }
                     if ("${params.template}" == "") {
                         echo 'Start execute create app with para:'
                         sh "python sources/create_app.py  ${paras}"
