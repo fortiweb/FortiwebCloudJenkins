@@ -3,7 +3,7 @@ pipeline {
     parameters {
         string(name: 'user', defaultValue: 'admin', description: 'You must input you fortiweb cloud account')
         password(name: 'password', defaultValue: 'SECRET', description: 'Enter a password')
-        string(name: 'application_name', defaultValue: 'www.demo.com', description: 'Your domain name')
+        string(name: 'application_name', defaultValue: 'YOUR_APP_NAME', description: 'Your app name')
     }
     stages {
         stage('build') {
